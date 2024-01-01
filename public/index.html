@@ -1,43 +1,215 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#000000" />
-    <meta
-      name="description"
-      content="Web site created using create-react-app"
-    />
-    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
-    <!--
-      manifest.json provides metadata used when your web app is installed on a
-      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
-    -->
-    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-    <!--
-      Notice the use of %PUBLIC_URL% in the tags above.
-      It will be replaced with the URL of the `public` folder during the build.
-      Only files inside the `public` folder can be referenced from the HTML.
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RATAALADA</title>
+    <style>
+        body {
+            background-image: url('background.gif');
+            background-color: black;
+            color: green;
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            padding: 20px;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background-size: cover;
+        }
 
-      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
-      work correctly both with client-side routing and a non-root public URL.
-      Learn how to configure a non-root public URL by running `npm run build`.
-    -->
-    <title>React App</title>
-  </head>
-  <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
-    <!--
-      This HTML file is a template.
-      If you open it directly in the browser, you will see an empty page.
+        .game-container {
+            background-color: rgba(0, 0, 0, 0.8);
+            color: green;
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            padding: 20px;
+            border: 2px solid green;
+            border-radius: 5px;
+            max-width: 600px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
 
-      You can add webfonts, meta tags, or analytics to this file.
-      The build step will place the bundled scripts into the <body> tag.
+        #response {
+            color: red;
+        }
 
-      To begin the development, run `npm start` or `yarn start`.
-      To create a production bundle, use `npm run build` or `yarn build`.
-    -->
-  </body>
+        input[type="text"], input[type="button"], button {
+            background-color: black;
+            color: green;
+            border: 1px solid green;
+            border-radius: 3px;
+            padding: 5px;
+            margin-top: 10px;
+            cursor: pointer;
+        }
+
+        input[type="button"]:hover, button:hover {
+            background-color: green;
+            color: black;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="conversation" class="game-container">
+        <div id="question"></div>
+        <input type="text" id="user-response" placeholder="Tapez votre réponse..." onkeydown="checkEnter(event)">
+        <input type="button" value="Envoyer" onclick="handleUserResponse()">
+    </div>
+    <div id="response"></div>
+
+    <div id="final-message" class="game-container hidden">
+        <p>Félicitations ! Vous avez répondu à toutes les questions.</p>
+        <p>Choisissez l'une des options suivantes :</p>
+        <button onclick="showPasswordInput()">Vider le compte</button>
+        <button onclick="startSelfDestructCountdown()">Lancer l'autodestruction</button>
+    </div>
+
+    <div id="password-container" class="game-container hidden">
+        <input type="password" id="password-input" placeholder="Entrez le mot de passe">
+        <input type="button" id="password-submit" value="Valider" onclick="checkPassword()">
+    </div>
+
+    <div id="countdown-container" class="game-container hidden">
+        <p id="countdown"></p>
+    </div>
+
+    <div id="bank-container" class="game-container hidden">
+        <p id="bank-balance">Solde bancaire : $6,000,000,000</p>
+    </div>
+
+    <script>
+        let answers;
+        fetch('answers.json')
+            .then(response => response.json())
+            .then(data => {
+                answers = data;
+                displayCurrentQuestion();
+            })
+            .catch(error => {
+                console.error('Erreur lors du chargement des réponses :', error);
+            });
+
+        const questions = [
+            "Je vois que vous m'avez trouvé, félicitations. Maintenant êtes-vous prêt à tenter de tout risquer pour réussir m'arrêter?",
+            "J'ai 500 ans, je suis d'origine grecque et latine. Malgré le fait que j'existais bien avant ma naissance, ma vie reste une énigme. Qui suis-je?",
+            "Tous me connaissent et tous me craignent. Derrière chaque action, je suis. Rouge et bleu croient pouvoir vivre sans moi, mais je reste inévitable. Qui suis-je?",
+            "Aveugle, j'ai tué devant le peuple. Tous me réclament, mais peu veulent me faire face! Face à mes punitions, tous me respecteront! Qui suis-je?",
+            "Effrayé et caché dans votre tour d'ivoire, vous resterez à jamais mes prisonniers! Vous avez beau me chercher, il est faux de penser que vous allez me trouver. Vous allez toujours me manquer. Qui suis-je?",
+            "Vous savez comment je fonctionne. Vous savez pourquoi je fais ceci. Vous savez ce que je recherche. Vous savez qu'il est trop tard. Pourtant, j'ai la conviction que vous n'avez pas compris tous ce qui est en jeu. Sans Me comprendre et sans utiliser Notre QI, pourrez-vous me poser la bonne question?"
+        ];
+
+        let wrongAnswerCount = 0;
+        let currentQuestionIndex = 0;
+        let countdownInterval;
+
+        function displayCurrentQuestion() {
+            document.getElementById('question').innerHTML = questions[currentQuestionIndex];
+            document.getElementById('user-response').value = '';
+            document.getElementById('response').innerHTML = '';
+        }
+
+        function handleUserResponse() {
+            const userResponse = document.getElementById('user-response').value;
+            const correctAnswer = answers[currentQuestionIndex];
+            if (userResponse.toLowerCase() === correctAnswer.toLowerCase()) {
+                currentQuestionIndex++;
+                if (currentQuestionIndex < questions.length) {
+                    displayCurrentQuestion();
+                } else {
+                    showFinalMessage();
+                }
+            } else {
+                wrongAnswerCount++;
+                if (wrongAnswerCount >= 3) {
+                    startSelfDestructCountdown();
+                } else {
+                    document.getElementById('response').innerHTML = `Réponse incorrecte, essayez encore. Erreurs restantes : ${3 - wrongAnswerCount}`;
+                }
+            }
+        }
+
+        function showFinalMessage() {
+            document.getElementById('conversation').classList.add('hidden');
+            document.getElementById('final-message').classList.remove('hidden');
+        }
+
+        function showPasswordInput() {
+            document.getElementById('conversation').classList.add('hidden');
+            document.getElementById('final-message').classList.add('hidden');
+            document.getElementById('password-container').classList.remove('hidden');
+            document.getElementById('password-input').focus();
+        }
+
+        function checkPassword() {
+            const passwordInput = document.getElementById('password-input').value;
+            if (passwordInput === '123') {
+                startBankBalanceCountdown();
+            } else {
+                alert('Mot de passe incorrect. Veuillez réessayer.');
+                document.getElementById('password-input').value = '';
+                document.getElementById('password-input').focus();
+            }
+        }
+
+        function startBankBalanceCountdown() {
+            document.getElementById('password-container').classList.add('hidden');
+            document.getElementById('bank-container').classList.remove('hidden');
+            let bankBalance = 6000000000;
+            const bankBalanceElement = document.getElementById('bank-balance');
+
+            function updateBankBalance() {
+                if (bankBalance <= 0) {
+                    clearInterval(countdownInterval);
+                    bankBalanceElement.textContent = "Solde bancaire : $0";
+                    startSelfDestructCountdown();
+                } else {
+                    bankBalance -= 400000000;
+                    bankBalanceElement.innerHTML = `Solde bancaire : $${bankBalance.toLocaleString()}`;
+                }
+            }
+
+            countdownInterval = setInterval(updateBankBalance, 1000);
+        }
+
+        function startSelfDestructCountdown() {
+            document.getElementById('bank-container').classList.add('hidden');
+            document.getElementById('countdown-container').classList.remove('hidden');
+            let countdownValue = 15;
+            const countdownElement = document.getElementById('countdown');
+
+            function updateCountdown() {
+                countdownElement.textContent = `Séquence d'autodestruction activée. Le site sera détruit dans ${countdownValue} secondes.`;
+                countdownValue--;
+
+                if (countdownValue < 0) {
+                    document.body.style.display = 'none';
+                    window.close();
+                } else {
+                    setTimeout(updateCountdown, 1000);
+                }
+            }
+
+            updateCountdown();
+        }
+
+        function checkEnter(event) {
+            if (event.key === "Enter") {
+                if (document.activeElement === document.getElementById('user-response')) {
+                    handleUserResponse();
+                } else if (document.activeElement === document.getElementById('password-input')) {
+                    checkPassword();
+                }
+            }
+        }
+    </script>
+</body>
 </html>
